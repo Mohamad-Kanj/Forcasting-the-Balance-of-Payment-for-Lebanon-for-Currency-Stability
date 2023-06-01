@@ -1,0 +1,149 @@
+library(fpp2)
+library(urca)
+library(MASS)
+library(car)
+library(seasonal)
+
+current=read.csv('/Users/ayazeini/Desktop/infos/AUB/Courses/Spring/Electives/Forecasting/Project/Current Account; goods, services, income and current transfers.csv')
+values <- ts(current$Net, frequency=12, start=c(2002,1))
+values
+autoplot(values)
+ggseasonplot(values)
+ggsubseriesplot(values)
+gglagplot(values)
+
+summary(values)
+
+ets_final<- ets(values,model="ANA")
+Final_forecasted<- forecast(ets_final,h=12)
+plot(Final_forecasted)
+
+
+datatrain = window(values, start = c(2002,1), end = c(2021,6)) 
+datatrain
+datatest = window(values, start = c(2021,7))
+datatest
+
+# add a constant to make all values positive
+const <- abs(min(datatrain)) + 0.1
+values_pos <- datatrain + const
+
+
+datatrain %>% ur.kpss() %>% summary()
+
+# apply Box-Cox transformation
+
+lambda <- BoxCox.lambda(values_pos)
+values_bc <- BoxCox(values_pos, lambda)
+
+auto.arima(datatrain, seasonal=FALSE, stepwise=FALSE, approximation=FALSE)
+ndiffs(datatrain)
+datatrain %>% diff() %>% ggtsdisplay(main="")
+datatrain=diff(datatrain)
+
+MA1 <- Arima(datatrain,order=c(0,1,2))
+print(MA1)
+
+fcast1 = forecast(MA1, h = 12)
+accuracy(fcast1)
+autoplot(fcast1)
+
+
+MA2 <- Arima(datatrain, order=c(0,1,1))
+print(MA2)
+
+fcast2 = forecast(MA2, h = 12)
+accuracy(fcast2)
+autoplot(fcast2)
+
+
+ARMA1 <- Arima(datatrain, order=c(1,1,1))
+print(ARMA1)
+
+fcast3 = forecast(ARMA1, h = 12)
+accuracy(fcast3)
+autoplot(fcast3)
+
+ARMA2 <- Arima(datatrain, order=c(1,1,2))
+print(ARMA2)
+
+fcast4 = forecast(ARMA2, h = 12)
+accuracy(fcast4)
+autoplot(fcast4)
+
+MA3 <- Arima(datatrain, order=c(0,1,2))
+print(MA3)
+
+fcast5 = forecast(MA3, h = 12)
+accuracy(fcast5)
+autoplot(fcast5)
+
+ARMA3 <- Arima(datatrain, order=c(1,2,3))
+print(ARMA3)
+
+fcast6 = forecast(MA3, h = 12)
+accuracy(fcast6)
+autoplot(fcast6)
+
+ARMA4 <- Arima(datatrain, order=c(2,2,2))
+print(ARMA4)
+
+fcast7 = forecast(MA3, h = 12)
+accuracy(fcast7)
+autoplot(fcast7)
+
+
+MA4 <- Arima(datatrain, order=c(0,2,2))
+print(MA4)
+
+fcast8 = forecast(MA3, h = 12)
+accuracy(fcast8)
+autoplot(fcast8)
+
+ARMA6 <- Arima(datatrain, order=c(2,1,2))
+print(ARMA6)
+
+fcast9 = forecast(ARMA6, h = 12)
+accuracy(fcast9)
+autoplot(fcast9)
+
+checkresiduals(MA4) 
+
+moving_average <-ma(values, 12)
+decomp<- values %>% decompose(type="additive") %>% autoplot() + xlab("Year")
+decomp
+
+
+ets1 <- ets(datatrain,model = "AAN")
+ets1
+forecast_values1 <- forecast(ets1, h = 12)
+accuracy(forecast_values1)
+
+ets2 <- ets(datatrain,model = "AAA")
+ets2
+forecast_values2 <- forecast(ets2, h = 12)
+accuracy(forecast_values2)
+
+ets3 <- ets(datatrain,model = "ANA")
+forecast_values3 <- forecast(ets3, h = 12)
+ets3
+accuracy(forecast_values3)
+plot(forecast_values3)
+
+ets4 <- ets(datatrain,model = "ANN")
+forecast_values4 <- forecast(ets4, h = 12)
+ets4
+accuracy(forecast_values4)
+
+
+ses1 <- ses(datatrain,h=12)
+accuracy(ses1)
+plot(ses1)
+
+holt1 <- holt(datatrain, h=12)
+accuracy(holt1)
+plot(holt1)
+
+holt2 <- holt(datatrain, damped = TRUE,phi = 0.9, h=12)
+accuracy(holt2)
+plot(holt2)
