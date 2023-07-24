@@ -1,0 +1,747 @@
+This dashboard, built with shiny, offers the users the ability to walk through all models built fot the current and financial account. further, it displays the results of the different models. 
+besides that, it offers high level interactivity that allows users the ability to try different parameters for the models to accomodate any changes in the future.
+
+library(shiny)
+library(shinydashboard)
+library(ggplot2)
+library(shinythemes)
+library(shiny)
+library(MASS)
+library(ggfortify)
+library(fpp2)
+
+
+ui <- fluidPage(
+  width = 1920, height = 1080,
+  
+  tags$head(
+    tags$style(HTML("
+      .navbar-default {background-color: #2596be;}
+      .navbar-default .navbar-nav > li > a {color: #000;}
+      .navbar-default .navbar-brand {color: #CCFFFF;}
+      .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {background-color: #CCFFFF; color: #CCFFFF;}
+      body {background-color: #FFFFFF;}
+      #navbar .nav > li {width: 100%; text-align: center;}
+      #navbar .nav > li > a {width: 100%;}
+      
+      /* Additional CSS for the active dataset tab */
+      .nav-tabs > li.active > a,
+      .nav-tabs > li.active > a:focus,
+      .nav-tabs > li.active > a:hover {
+        background-color: #2596be !important; /* Replace #FF0000 with the desired background color code */
+        color: #E4FF00 !important; /* Replace #E4FF00 with the desired text color code */
+      }
+    "))
+  ),
+  
+  navbarPage("", id = "navbar",
+             tabPanel("Current Account", fluid = TRUE,
+                      fluidRow(
+                        tags$div(
+                          style = "font-size: 15px; color: black;",
+                    
+                        ),                        
+                        column(width = 12,
+                               # Add the first plot
+                               plotOutput("autoplot", height = "500px")),
+                        column(width = 6,
+                               sliderInput("diffs", "Order of differencing:", min = 0, max = 5, value = 0)),
+                        column(width = 6,
+                               numericInput("lambda", "Box-Cox transformation parameter:", value = 1)),
+                        column(width = 12,
+                               
+                               plotOutput("autoplot_input", height = "500px")),
+                        column(width = 6,
+                              
+                               plotOutput("acf", height = "500px")),
+                        column(width = 6,
+                               
+                               plotOutput("pacf", height = "500px")),
+                        column(width = 12, hr(style = "border-top: 2px solid black;")),
+                        column(width = 3,
+                               selectInput("p", "ARIMA p:", c(0,1,2,3,4,5))),
+                        
+                        column(width = 3,
+                               selectInput("d", "ARIMA d:", c(0,1,2,3,4,5))),
+                        
+                        column(width = 3,
+                               selectInput("q", "ARIMA q:", c(0,1,2,3,4,5))),
+                        column(width = 3,
+                               numericInput("lambda2", "Box-Cox transformation parameter:", value = 1)),
+                        column(width = 12,
+                        verbatimTextOutput("arima_output")),
+                        
+                        column(width = 12,
+                               
+                               plotOutput("plot_residuals", height = "500px")),
+                        column(width = 6,
+                           
+                               plotOutput("acf_residuals", height = "500px")),
+                        column(width = 6,
+               
+                               plotOutput("histogram_residuals", height = "500px")),
+                        column(width = 12,
+                               
+                               plotOutput("ARIMA_forecast", height = "500px")),
+                        column(width = 12,
+                               verbatimTextOutput("metrics")),
+                        column(width = 12, hr(style = "border-top: 2px solid black;")),
+                        column(width = 3,
+                               selectInput("E", "E:", c("A", "M", "N"))),
+                        
+                        column(width = 3,
+                               selectInput("Tt", "T:", c("A", "M", "N"))),
+                        
+                        column(width = 3,
+                               selectInput("S", "S:", c("A", "M", "N"))),
+                        column(width = 12,
+                               verbatimTextOutput("metrics_ETS"))
+                      )
+             ),
+             tabPanel("Futurists Dataset", fluid = TRUE,
+                      fluidRow(
+                        column(width = 12,
+                               # Add the first plot
+                               plotOutput("autoplot_2", height = "500px")),
+                        column(width = 6,
+                               sliderInput("diffs_2", "Order of differencing:", min = 0, max = 5, value = 0)),
+                        column(width = 6,
+                               numericInput("lambda_2", "Box-Cox transformation parameter:", value = 1)),
+                        column(width = 12,
+                               
+                               plotOutput("autoplot_input_2", height = "500px")),
+                        column(width = 6,
+                              
+                               plotOutput("acf_2", height = "500px")),
+                        column(width = 6,
+                               
+                               plotOutput("pacf_2", height = "500px")),
+                        
+                        column(width = 12, hr(style = "border-top: 2px solid black;")),
+                        column(width = 3,
+                               selectInput("p_2", "ARIMA p", c(0,1,2,3,4,5))),
+                        
+                        column(width = 3,
+                               selectInput("d_2", "ARIMA d", c(0,1,2,3,4,5))),
+                        
+                        column(width = 3,
+                               selectInput("q_2", "ARIMA q", c(0,1,2,3,4,5))),
+                        column(width = 3,
+                               numericInput("lambda_2_2", "Box-Cox transformation parameter:", value = 1)),
+                        column(width = 12,
+                               verbatimTextOutput("arima_output_2")),
+                        
+                        column(width = 12,
+                               plotOutput("plot_residuals_2", height = "500px")),
+                        column(width = 6,
+                               plotOutput("acf_residuals_2", height = "500px")),
+                        column(width = 6,
+                               plotOutput("histogram_residuals_2", height = "500px")),
+                        column(width = 12,
+                               plotOutput("ARIMA_forecast_2", height = "500px"))
+                      )
+             ),
+             tabPanel("Financial Account", fluid = TRUE,
+                      fluidRow(
+                        column(width = 12,
+                               # Add the first plot
+                               plotOutput("autoplot_3", height = "500px")),
+                        column(width = 6,
+                               sliderInput("diffs_3", "Order of differencing:", min = 0, max = 5, value = 0)),
+                        column(width = 6,
+                               numericInput("lambda_3", "Box-Cox transformation parameter:", value = 1)),
+                        column(width = 12,
+                               # Add the second plot
+                               plotOutput("autoplot_input_3", height = "500px")),
+                        column(width = 6,
+                               # Add the third plot
+                               plotOutput("acf_3", height = "500px")),
+                        column(width = 6,
+                               # Add the third plot
+                               plotOutput("pacf_3", height = "500px")),
+                        
+                        column(width = 12, hr(style = "border-top: 2px solid black;")),
+                        
+                        column(width = 3,
+                               selectInput("p_3", "ARIMA p", c(0,1,2,3,4,5))),
+                        
+                        column(width = 3,
+                               selectInput("d_3", "ARIMA d", c(0,1,2,3,4))),
+                        column(width = 3,
+                               selectInput("q_3", "ARIMA q", c(0,1,2,3,4,5))),
+                        column(width = 3,
+                               numericInput("lambda_2_3", "Box-Cox transformation parameter:", value = 1)),
+                        column(width = 12,
+                               verbatimTextOutput("arima_output_3")),
+                        
+                        column(width = 12,
+                               plotOutput("plot_residuals_3", height = "500px")),
+                        column(width = 6,
+                               plotOutput("acf_residuals_3", height = "500px")),
+                        column(width = 6,
+                               plotOutput("histogram_residuals_3", height = "500px")),
+                        column(width = 12,
+                               plotOutput("ARIMA_forecast_3", height = "500px")),
+                        
+                                      column(width = 12,
+                                             verbatimTextOutput("metrics_3")),
+                                      column(width = 12, hr(style = "border-top: 2px solid black;")),
+                                      column(width = 3,
+                                             selectInput("E_3", "E:", c("A", "M", "N"))),
+                                      
+                                      column(width = 3,
+                                             selectInput("Tt_3", "T:", c("A", "M", "N"))),
+                                      
+                                      column(width = 3,
+                                             selectInput("S_3", "S:", c("A", "M", "N"))),
+                                      column(width = 12,
+                                             verbatimTextOutput("metrics_ETS_3")))
+                      )
+             )
+  )
+
+                                                               
+
+
+
+# Define server
+server <- function(input, output) {
+
+  data <- read.csv("data.csv")
+  values <- reactive({
+    # Read the CSV file and store it in a reactive object
+    ts <-  ts(data$Net, frequency=12, start=c(2002,1), end = c(2022, 6)) 
+    ts
+      })
+  
+  transformed_values <- reactive({
+    # Calculate the difference between consecutive values based on the user's input
+    if (input$diffs == 0) {
+      transformed_data <- values()
+    } else {
+      transformed_data <- diff(values(), differences = input$diffs)
+    }
+    
+    # Apply the Box-Cox transformation
+    transformed_data <- BoxCox(transformed_data, lambda = input$lambda)
+    transformed_data
+  })
+  
+  
+  train_boxcox <- reactive({
+
+    train_data <- window(values(), start = c(2002, 1), end = c(2021, 6))
+  
+    # Apply the Box-Cox transformation
+    transformed_data <- BoxCox(train_data, lambda = input$lambda2)
+    transformed_data
+  })
+  
+  
+  test_boxcox <- reactive({
+    test_data <- window(values(), start = c(2021, 7), end = c(2022, 6))
+    
+    # Apply the Box-Cox transformation
+    transformed_data <- BoxCox(test_data, lambda = input$lambda2)
+    transformed_data
+  })
+  
+
+
+  ARIMA_MODEL <- reactive({
+    order <- c(as.integer(input$p), as.integer(input$d), as.integer(input$q))
+    model <- arima(train_boxcox(),order)
+    return(model)
+  })
+  
+  
+  # Create the first plot
+  output$autoplot <- renderPlot({
+    ggplot(data = fortify(values())) +
+      geom_line(aes(x = Index, y = Data)) +
+      labs(title = "Original Time Series", y = "Net", x = '') +
+      theme_minimal()
+  })
+  
+  output$autoplot_input <- renderPlot({
+    ggplot(data = fortify(transformed_values())) +
+      geom_line(aes(x = Index, y = Data)) +
+      labs(title = "Differenced Time Series", y = "Net", x = '') +
+      theme_minimal()
+  })
+  
+  
+  output$acf <- renderPlot({
+    acf_data <- acf(transformed_values(), plot = FALSE, lag.max = 12)
+    plot(acf_data, ylab = "ACF", main = "", axes = FALSE)
+    
+    axis(side = 2, tick = TRUE)  
+    })
+  
+  output$pacf <- renderPlot({
+    pacf_data <- pacf(transformed_values(), plot = FALSE, lag.max = 12)
+    plot(pacf_data, ylab = "PACF", main = "",  axes = FALSE)
+    axis(side = 2, tick = TRUE)  
+    })
+  output$arima_output <- renderPrint({
+    # Get the ARIMA model based on user input
+    model <- ARIMA_MODEL()
+    # Print the model output
+    capture.output(model)
+    
+    
+  })
+  
+  output$plot_residuals <- renderPlot({
+    # Get the ARIMA model based on user input
+    model <- ARIMA_MODEL()
+    
+    ggplot(data = fortify(model$residuals))+geom_line(aes(x = Index, y = Data))+labs(title = "Residual Plot") +theme_minimal()
+    
+    
+    
+    
+    
+  })
+  
+  output$acf_residuals <- renderPlot({
+    # Get the ARIMA model based on user input
+    model <- ARIMA_MODEL()
+    
+    acf_data <- acf(model$residuals, plot = FALSE, lag.max = 15)
+    plot(acf_data, ylab = "ACF", main = "Residual ACF", axes = FALSE)
+    
+    axis(side = 2, tick = TRUE)  
+  })
+    output$histogram_residuals <- renderPlot({
+      # Get the ARIMA model based on user input
+      model <- ARIMA_MODEL()
+      
+      
+      
+      
+      hist(model$residuals, breaks = 20, col = "gray",
+           xlab = "Residuals", ylab = "Frequency", main = "Histogram of Residuals")
+      
+      mu <- mean(model$residuals)
+      sigma <- sd(model$residuals)
+      x <- seq(min(model$residuals), max(model$residuals), length = 100)
+      y <- dnorm(x, mean = mu, sd = sigma)
+      y <- y * sum(diff(model$residuals) * length(model$residuals))  # Scale the curve to match the histogram
+      y <- 1*y * (1 + 0.5 * exp(-0.5 * (x - mu)^2 / sigma^2))  # Increase height at point 0
+      lines(x, y, col = "red", lwd = 2)
+      
+      
+      
+      
+      
+      
+    })
+    
+    output$ARIMA_forecast <- renderPlot({
+      # Get the ARIMA model based on user input
+      model <- ARIMA_MODEL()
+      
+      
+      fcast1 <- forecast(model, h = 12)
+      plot(fcast1, axes = FALSE)
+      axis(side = 2, tick = TRUE)  
+      lines(test_boxcox(), col = "red")  # Original values plotted in blue
+      lines(fcast1$mean, col = "blue")
+      
+      legend("bottomright", legend = c("Forecasted", "Actual"), col = c("blue", "red"), lty = c(1, 1), bty = "n")
+      
+      
+      
+    })
+    
+    output$metrics <- renderPrint({
+      model <- ARIMA_MODEL()
+      actual <- as.numeric(test_boxcox())
+      forecast <- forecast(model, h = 6) 
+      forecast <- as.numeric(forecast$mean)
+      mae <- mean(abs(forecast - actual))
+      
+      # Root Mean Squared Error (RMSE)
+      rmse <- sqrt(mean((forecast - actual)^2))
+      
+      # Mean Absolute Percentage Error (MAPE)
+      mape <- mean(abs((forecast - actual) / actual)) * 100
+      
+      # Print the results
+      print(paste("MAE:", mae))
+      print(paste("RMSE:", rmse))
+      print(paste("MAPE:", mape))
+    })
+    
+    
+    ETS_MODEL <- reactive({
+      model <- ets(values(), paste(input$E, input$Tt, input$S, sep = ''))
+      return(model)
+    })
+    
+    
+    output$metrics_ETS <- renderPrint({
+      model <- ETS_MODEL()
+      print(model)
+    })
+    ######################################################################
+    ######################################################################
+    ######################################################################
+    data2 <- read.csv("DataFuturists.csv")
+    values2 <- reactive({
+      # Read the CSV file and store it in a reactive object
+      
+      ts(data2$x, frequency = 365)
+    })
+    
+    transformed_values2 <- reactive({
+      # Calculate the difference between consecutive values based on the user's input
+      if (input$diffs_2 == 0) {
+        transformed_data2 <- values2()
+      } else {
+        transformed_data2 <- diff(values2(), differences = input$diffs_2)
+      }
+      
+      # Apply the Box-Cox transformation
+      transformed_data2 <- BoxCox(transformed_data2, lambda = input$lambda_2)
+      transformed_data2
+    })
+    
+    
+    train_boxcox2 <- reactive({
+      train_data2 <- values2()
+      train_data2 <- head(train_data2, length(train_data2) - 6)
+      
+      
+      
+      # Apply the Box-Cox transformation
+      transformed_data2 <- BoxCox(train_data2, lambda = input$lambda_2_2)
+      transformed_data2
+    })
+    
+    
+    test_boxcox2 <- reactive({
+      test_data2 <- values2()
+      test_data2 <- tail(test_data2, 6)
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      # Apply the Box-Cox transformation
+      transformed_data2 <- BoxCox(test_data2, lambda = input$lambda_2_2)
+      transformed_data2
+    })
+    
+    
+    
+    ARIMA_MODEL2 <- reactive({
+      order <- c(as.integer(input$p_2), as.integer(input$d_2), as.integer(input$q_2))
+      model <- arima(train_boxcox2(), order)
+      return(model)
+    })
+    # Create the first plot
+    output$autoplot_2 <- renderPlot({
+      ggplot(data = fortify(values2())) +
+        geom_line(aes(x = Index, y = Data)) +
+        labs(title = "Original Time Series", y = "", x = '') +
+        theme_minimal()
+    })
+    
+    output$autoplot_input_2 <- renderPlot({
+      ggplot(data = fortify(transformed_values2())) +
+        geom_line(aes(x = Index, y = Data)) +
+        coord_cartesian(ylim = c(-max(abs(transformed_values2())), max(abs(transformed_values2())))) +
+        labs(title = "Differenced Time Series", y = "", x = '') +
+        theme_minimal()
+    })
+    
+    
+    output$acf_2 <- renderPlot({
+      acf_data <- acf(transformed_values2(), plot = FALSE, lag.max = 12)
+      plot(acf_data, ylab = "ACF", main = "", axes = FALSE)
+      
+      axis(side = 2, tick = TRUE)  
+    })
+    
+    output$pacf_2 <- renderPlot({
+      pacf_data <- pacf(transformed_values2(), plot = FALSE, lag.max = 12)
+      plot(pacf_data, ylab = "PACF", main = "",  axes = FALSE)
+      axis(side = 2, tick = TRUE)  
+    })
+    output$arima_output_2 <- renderPrint({
+      # Get the ARIMA model based on user input
+      model <- ARIMA_MODEL2()
+      
+      # Print the model output
+      capture.output(model)
+      
+      
+    })
+    
+    output$plot_residuals_2 <- renderPlot({
+      # Get the ARIMA model based on user input
+      model <- ARIMA_MODEL2()
+      
+      ggplot(data = fortify(model$residuals))+geom_line(aes(x = Index, y = Data))+labs(title = "Residual Plot") +theme_minimal()
+      
+      
+      
+      
+      
+    })
+    
+    output$acf_residuals_2 <- renderPlot({
+      # Get the ARIMA model based on user input
+      model <- ARIMA_MODEL2()
+      
+      acf_data <- acf(model$residuals, plot = FALSE, lag.max = 15)
+      plot(acf_data, ylab = "ACF", main = "Residual ACF", axes = FALSE)
+      
+      axis(side = 2, tick = TRUE)  
+    })
+      output$histogram_residuals_2 <- renderPlot({
+        # Get the ARIMA model based on user input
+        model <- ARIMA_MODEL2()
+        
+        
+        
+        
+        hist(model$residuals, breaks = 10, col = "gray",
+             xlab = "Residuals", ylab = "Frequency", main = "Histogram of Residuals")
+        
+        mu <- mean(model$residuals)
+        sigma <- sd(model$residuals)
+        x <- seq(min(model$residuals), max(model$residuals), length = 100)
+        y <- dnorm(x, mean = mu, sd = sigma)
+        y <- y * sum(diff(model$residuals) * length(model$residuals))  # Scale the curve to match the histogram
+        y <- 2.5*y * (1 + 0.5 * exp(-0.5 * (x - mu)^2 / sigma^2))  # Increase height at point 0
+        lines(x, y, col = "red", lwd = 2)
+        
+        
+        
+        
+        
+        
+      })
+
+      output$ARIMA_forecast_2 <- renderPlot({
+        # Get the ARIMA model based on user input
+        model <- ARIMA_MODEL2()
+      
+        
+        fcast1 = forecast(model, h = 6)
+        plot(fcast1, axes = FALSE)
+        axis(side = 2, tick = TRUE) 
+        lines(test_boxcox2(), col = "red")  # Original values plotted in blue
+        lines(fcast1$mean, col = "blue")
+        
+        legend("bottomright", legend = c("Forecasted", "Actual"), col = c("blue", "red"), lty = c(1, 1), bty = "n")
+######################################
+        ##################################
+        #################################
+        
+      
+    
+      })
+      data3 <- read.csv('BDL.csv')
+      values3 <- reactive({
+        # Read the CSV file and store it in a reactive object
+        
+        ts(data3$Net, frequency = 12)
+      })
+      
+      transformed_values3 <- reactive({
+        # Calculate the difference between consecutive values based on the user's input
+        if (input$diffs_3 == 0) {
+          transformed_data3 <- values3()
+        } else {
+          transformed_data3 <- diff(values3(), differences = input$diffs_3)
+        }
+        
+        # Apply the Box-Cox transformation
+        transformed_data3 <- BoxCox(transformed_data3, lambda = input$lambda_3)
+        transformed_data3
+      })
+      
+      
+      train_boxcox3 <- reactive({
+        train_data3 <- values3()
+        train_data3 <- head(train_data3, length(train_data3) - 6)
+        
+        
+        
+        # Apply the Box-Cox transformation
+        transformed_data3 <- BoxCox(train_data3, lambda = input$lambda_2_3)
+        transformed_data3
+      })
+      
+      
+      test_boxcox3 <- reactive({
+        test_data3 <- values3()
+        test_data3 <- tail(test_data3, 6)
+        
+        
+        
+        
+    
+        
+        
+        
+        
+        # Apply the Box-Cox transformation
+        transformed_data3 <- BoxCox(test_data3, lambda = input$lambda_2_3)
+        transformed_data3
+      })
+      
+      
+      
+      ARIMA_MODEL3 <- reactive({
+        order <- c(as.integer(input$p_3), as.integer(input$d_3), as.integer(input$q_3))
+        model <- arima(train_boxcox3(), order)
+        return(model)
+      })
+      # Create the first plot
+      output$autoplot_3 <- renderPlot({
+        ggplot(data = fortify(values3())) +
+          geom_line(aes(x = Index, y = Data)) +
+          labs(title = "Original Time Series", y = "", x = '') +
+          theme_minimal()
+      })
+      
+      output$autoplot_input_3 <- renderPlot({
+        ggplot(data = fortify(transformed_values3())) +
+          geom_line(aes(x = Index, y = Data)) +
+          coord_cartesian(ylim = c(-max(abs(transformed_values3())), max(abs(transformed_values3())))) +
+          labs(title = "Differenced Time Series", y = "", x = '') +
+          theme_minimal()
+      })
+      
+      
+      output$acf_3 <- renderPlot({
+        acf_data <- acf(transformed_values3(), plot = FALSE, lag.max = 12)
+        plot(acf_data, ylab = "ACF", main = "", axes = FALSE)
+        
+        axis(side = 2, tick = TRUE)  
+      })
+      
+      output$pacf_3 <- renderPlot({
+        pacf_data <- pacf(transformed_values3(), plot = FALSE, lag.max = 12)
+        plot(pacf_data, ylab = "PACF", main = "",  axes = FALSE)
+        axis(side = 2, tick = TRUE)  
+      })
+      output$arima_output_3 <- renderPrint({
+        # Get the ARIMA model based on user input
+        model <- ARIMA_MODEL3()
+        
+        # Print the model output
+        capture.output(summary(model))
+        
+        
+      })
+      
+      output$plot_residuals_3 <- renderPlot({
+        # Get the ARIMA model based on user input
+        model <- ARIMA_MODEL3()
+        
+        ggplot(data = fortify(model$residuals))+geom_line(aes(x = Index, y = Data))+labs(title = "Residual Plot") +theme_minimal()
+        
+        
+        
+        
+        
+      })
+      
+      output$acf_residuals_3 <- renderPlot({
+        # Get the ARIMA model based on user input
+        model <- ARIMA_MODEL3()
+        
+        acf_data <- acf(model$residuals, plot = FALSE, lag.max = 15)
+        plot(acf_data, ylab = "ACF", main = "Residual ACF", axes = FALSE)
+        
+        axis(side = 2, tick = TRUE)  
+      })
+      output$histogram_residuals_3 <- renderPlot({
+        # Get the ARIMA model based on user input
+        model <- ARIMA_MODEL3()
+        
+        
+        
+        
+        hist(model$residuals, breaks = 10, col = "gray",
+             xlab = "Residuals", ylab = "Frequency", main = "Histogram of Residuals")
+        
+        mu <- mean(model$residuals)
+        sigma <- sd(model$residuals)
+        x <- seq(min(model$residuals), max(model$residuals), length = 100)
+        y <- dnorm(x, mean = mu, sd = sigma)
+        y <- y * sum(diff(model$residuals) * length(model$residuals))  # Scale the curve to match the histogram
+        y <- 2.5*y * (1 + 0.5 * exp(-0.5 * (x - mu)^2 / sigma^2))  # Increase height at point 0
+        lines(x, y, col = "red", lwd = 2)
+        
+        
+        
+        
+        
+        
+      })
+      
+      output$ARIMA_forecast_3 <- renderPlot({
+        # Get the ARIMA model based on user input
+        model <- ARIMA_MODEL3()
+        
+        
+        fcast1 = forecast(model, h = 6)
+        plot(fcast1, axes = FALSE)
+        axis(side = 2, tick = TRUE) 
+        lines(test_boxcox3(), col = "red")  # Original values plotted in blue
+        lines(fcast1$mean, col = "blue")
+        
+        legend("bottomright", legend = c("Forecasted", "Actual"), col = c("blue", "red"), lty = c(1, 1), bty = "n")
+        
+        output$metrics_3 <- renderPrint({
+          model <- ARIMA_MODEL3()
+          actual <- as.numeric(test_boxcox3())
+          forecast <- forecast(model, h = 6) 
+          forecast <- as.numeric(forecast$mean)
+          mae <- mean(abs(forecast - actual))
+          
+          # Root Mean Squared Error (RMSE)
+          rmse <- sqrt(mean((forecast - actual)^2))
+          
+          # Mean Absolute Percentage Error (MAPE)
+          mape <- mean(abs((forecast - actual) / actual)) * 100
+          
+          # Print the results
+          print(paste("MAE:", mae))
+          print(paste("RMSE:", rmse))
+          print(paste("MAPE:", mape))
+        })
+        
+        
+      })
+      
+  
+      ETS_MODEL_3 <- reactive({
+        model <- ets(values3(), paste(input$E_3, input$Tt_3, input$S_3, sep = ''))
+        return(model)
+      })
+      
+      
+      output$metrics_ETS_3 <- renderPrint({
+        model <- ETS_MODEL_3()
+        print(model)
+      })      
+      
+      
+  
+}
+
+
+# Run the app
+shinyApp(ui = ui, server = server)
