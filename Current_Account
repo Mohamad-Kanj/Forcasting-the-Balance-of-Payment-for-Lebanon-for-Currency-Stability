@@ -1,42 +1,73 @@
-library(fpp2)
-library(urca)
-library(MASS)
-library(car)
-library(seasonal)
+library(fpp2)        # Library for Forecasting: Forecasting Principles and Practice (2nd Edition)
+library(urca)        # Library for unit root and cointegration tests
+library(MASS)        # Library for statistical methods and models
+library(car)         # Library for linear regression and other advanced regression techniques
+library(seasonal)    # Library for seasonal analysis and decomposition
 
-current=read.csv('/Users/ayazeini/Desktop/infos/AUB/Courses/Spring/Electives/Forecasting/Project/Current Account; goods, services, income and current transfers.csv')
-values <- ts(current$Net, frequency=12, start=c(2002,1))
+#I. Reading Data and Time Series Preparation:
+# Read data from a CSV file
+current <- read.csv('/Users/ayazeini/Desktop/infos/AUB/Courses/Spring/Electives/Forecasting/Project/Current Account; goods, services, income and current transfers.csv')
+
+# Convert the 'Net' column to a time series object with monthly frequency starting from 2002, January
+values <- ts(current$Net, frequency = 12, start = c(2002, 1))
+
+# Display the time series object
 values
+
+# Plot the time series data
 autoplot(values)
+
+# Plot seasonal decomposition of time series
 ggseasonplot(values)
+
+# Plot subseries plots to analyze seasonal patterns
 ggsubseriesplot(values)
+
+# Plot time series lag plot
 gglagplot(values)
 
+# Summary statistics of the time series
 summary(values)
 
-ets_final<- ets(values,model="ANA")
-Final_forecasted<- forecast(ets_final,h=12)
+
+
+# II. Forecasting with ETS (Error, Trend, Seasonal) Model:
+# Fit ETS model to the time series data
+ets_final <- ets(values, model = "ANA")
+
+# Forecast the next 12 values using the ETS model
+Final_forecasted <- forecast(ets_final, h = 12)
+
+# Plot the forecasted values
 plot(Final_forecasted)
 
 
-datatrain = window(values, start = c(2002,1), end = c(2021,6)) 
+
+
+# III. Preparing data for ARIMA Model
+# Extract training data from the time series
+datatrain <- window(values, start = c(2002, 1), end = c(2021, 6))
 datatrain
-datatest = window(values, start = c(2021,7))
+
+# Extract test data from the time series (starting from July 2021)
+datatest <- window(values, start = c(2021, 7))
 datatest
 
 # add a constant to make all values positive
 const <- abs(min(datatrain)) + 0.1
 values_pos <- datatrain + const
 
-
+# Perform the KPSS test on the training data
 datatrain %>% ur.kpss() %>% summary()
 
 # apply Box-Cox transformation
-
 lambda <- BoxCox.lambda(values_pos)
 values_bc <- BoxCox(values_pos, lambda)
 
+# III-A. Trying Auto ARIMA
 auto.arima(datatrain, seasonal=FALSE, stepwise=FALSE, approximation=FALSE)
+
+# III-B. ARIMA
 ndiffs(datatrain)
 datatrain %>% diff() %>% ggtsdisplay(main="")
 datatrain=diff(datatrain)
